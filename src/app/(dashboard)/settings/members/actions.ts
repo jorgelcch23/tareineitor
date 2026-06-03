@@ -53,8 +53,8 @@ export async function inviteToWorkspace(formData: { email: string }) {
     (u) => u.email === parsed.data.email
   );
   if (existing) {
-    // Check if they already have a profile
-    const { data: existingProfile } = await auth.supabase
+    // Check if they already have a profile (active workspace member)
+    const { data: existingProfile } = await admin
       .from("profiles")
       .select("id")
       .eq("id", existing.id)
@@ -62,6 +62,8 @@ export async function inviteToWorkspace(formData: { email: string }) {
     if (existingProfile) {
       return { error: "User is already a workspace member" };
     }
+    // Orphaned auth user (was removed) — delete first, then re-invite
+    await admin.auth.admin.deleteUser(existing.id);
   }
 
   // Invite user by email — Supabase sends the invite email
@@ -70,9 +72,6 @@ export async function inviteToWorkspace(formData: { email: string }) {
   );
 
   if (error) {
-    if (error.message.includes("already been registered")) {
-      return { error: "User is already registered" };
-    }
     return { error: error.message };
   }
 
@@ -146,7 +145,10 @@ export async function removeFromWorkspace(formData: { userId: string }) {
 
   const admin = createAdminClient();
 
-  // Delete the user — CASCADE will clean up profiles, project_members, etc.
+  // Delete profile first (no CASCADE from auth.users to profiles)
+  await admin.from("profiles").delete().eq("id", parsed.data.userId);
+
+  // Then delete the auth user
   const { error } = await admin.auth.admin.deleteUser(parsed.data.userId);
   if (error) return { error: error.message };
 
