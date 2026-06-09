@@ -10,9 +10,10 @@ interface InlineAddTaskProps {
   projectId: string;
   statusId: string;
   statusColor: string;
+  listId: string;
 }
 
-export function InlineAddTask({ projectId, statusId, statusColor }: InlineAddTaskProps) {
+export function InlineAddTask({ projectId, statusId, statusColor, listId }: InlineAddTaskProps) {
   const [title, setTitle] = useState("");
   const [isPending, startTransition] = useTransition();
 
@@ -28,6 +29,7 @@ export function InlineAddTask({ projectId, statusId, statusColor }: InlineAddTas
         project_id: projectId,
         title: trimmed,
         status_id: statusId,
+        list_id: listId,
       });
       if (result.error) {
         toast.error(result.error);
@@ -55,6 +57,7 @@ export function InlineAddTask({ projectId, statusId, statusColor }: InlineAddTas
         />
       </div>
       {/* Empty columns to maintain grid alignment */}
+      <span />
       <span />
       <span />
       <span />

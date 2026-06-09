@@ -49,9 +49,27 @@ export default async function DashboardLayout({
     profile = newProfile;
   }
 
+  // Fetch lists separately (table might not exist yet before migration)
+  const { data: allLists } = await supabase
+    .from("lists")
+    .select("id, name, position, project_id")
+    .order("position");
+
+  const listsMap = new Map<string, { id: string; name: string; position: number }[]>();
+  for (const list of allLists ?? []) {
+    const arr = listsMap.get(list.project_id) ?? [];
+    arr.push({ id: list.id, name: list.name, position: list.position });
+    listsMap.set(list.project_id, arr);
+  }
+
+  const projectsWithLists = (projects ?? []).map((p) => ({
+    ...p,
+    lists: (listsMap.get(p.id) ?? []).sort((a, b) => a.position - b.position),
+  }));
+
   return (
     <div className="flex h-full">
-      <Sidebar projects={projects ?? []} profile={profile} />
+      <Sidebar projects={projectsWithLists} profile={profile} />
       <main className="flex-1 overflow-y-auto">{children}</main>
     </div>
   );

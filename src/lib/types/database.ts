@@ -142,6 +142,80 @@ export type Database = {
           },
         ];
       };
+      tags: {
+        Row: {
+          id: string;
+          project_id: string;
+          name: string;
+          color: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          name: string;
+          color: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          name?: string;
+          color?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "tags_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      lists: {
+        Row: {
+          id: string;
+          project_id: string;
+          name: string;
+          position: number;
+          created_by: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          name: string;
+          position?: number;
+          created_by: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          name?: string;
+          position?: number;
+          created_by?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "lists_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "lists_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       tasks: {
         Row: {
           id: string;
@@ -153,6 +227,8 @@ export type Database = {
           priority: "urgent" | "high" | "normal" | "low" | null;
           due_date: string | null;
           position: number;
+          list_id: string | null;
+          tag_id: string | null;
           created_by: string;
           created_at: string;
           updated_at: string;
@@ -167,6 +243,8 @@ export type Database = {
           priority?: "urgent" | "high" | "normal" | "low" | null;
           due_date?: string | null;
           position?: number;
+          list_id?: string | null;
+          tag_id?: string | null;
           created_by: string;
           created_at?: string;
           updated_at?: string;
@@ -181,6 +259,8 @@ export type Database = {
           priority?: "urgent" | "high" | "normal" | "low" | null;
           due_date?: string | null;
           position?: number;
+          list_id?: string | null;
+          tag_id?: string | null;
           created_by?: string;
           created_at?: string;
           updated_at?: string;
@@ -212,6 +292,20 @@ export type Database = {
             columns: ["created_by"];
             isOneToOne: false;
             referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "tasks_list_id_fkey";
+            columns: ["list_id"];
+            isOneToOne: false;
+            referencedRelation: "lists";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "tasks_tag_id_fkey";
+            columns: ["tag_id"];
+            isOneToOne: false;
+            referencedRelation: "tags";
             referencedColumns: ["id"];
           },
         ];

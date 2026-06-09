@@ -14,7 +14,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TaskFlow",
+  title: "Tasknator",
   description: "Simple task manager for teams",
 };
 

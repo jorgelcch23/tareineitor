@@ -6,7 +6,9 @@ import { cn } from "@/lib/utils";
 import { TaskRow, TASK_GRID_COLS } from "./task-row";
 import { InlineAddTask } from "./inline-add-task";
 import { StatusIcon } from "./status-icon";
-import type { TaskRowData, MemberInfo } from "./task-row";
+import { useDroppable } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import type { TaskRowData, MemberInfo, TagInfo } from "./task-row";
 
 export type StatusInfo = {
   id: string;
@@ -20,8 +22,10 @@ interface StatusGroupProps {
   status: StatusInfo;
   tasks: TaskRowData[];
   members: MemberInfo[];
+  tags: TagInfo[];
   statuses: StatusInfo[];
   projectId: string;
+  listId: string;
   onTaskClick: (taskId: string) => void;
 }
 
@@ -29,11 +33,14 @@ export function StatusGroup({
   status,
   tasks,
   members,
+  tags,
   statuses,
   projectId,
+  listId,
   onTaskClick,
 }: StatusGroupProps) {
   const [expanded, setExpanded] = useState(true);
+  const { setNodeRef } = useDroppable({ id: status.id });
 
   return (
     <div>
@@ -73,13 +80,16 @@ export function StatusGroup({
 
       {/* Table */}
       {expanded && (
-        <div className="ml-5 overflow-hidden rounded-lg border border-border/60">
+        <div ref={setNodeRef} className="ml-5 overflow-hidden rounded-lg border border-border/60">
           {/* Column headers */}
           <div
             className={`${TASK_GRID_COLS} border-b border-border/40 px-4 py-1.5`}
           >
             <span className="pl-7 text-xs font-medium text-[#838383]">
               Name
+            </span>
+            <span className="text-center text-xs font-medium text-[#838383]">
+              Tag
             </span>
             <span className="text-center text-xs font-medium text-[#838383]">
               Assignee
@@ -92,21 +102,30 @@ export function StatusGroup({
             </span>
           </div>
 
-          {tasks.map((task) => (
-            <TaskRow
-              key={task.id}
-              task={task}
-              members={members}
-              statuses={statuses}
-              projectId={projectId}
-              statusColor={status.color}
-              onClick={() => onTaskClick(task.id)}
-            />
-          ))}
+          <SortableContext
+            id={status.id}
+            items={tasks.map((t) => t.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            {tasks.map((task) => (
+              <TaskRow
+                key={task.id}
+                task={task}
+                members={members}
+                tags={tags}
+                statuses={statuses}
+                projectId={projectId}
+                statusColor={status.color}
+                onClick={() => onTaskClick(task.id)}
+              />
+            ))}
+          </SortableContext>
+
           <InlineAddTask
             projectId={projectId}
             statusId={status.id}
             statusColor={status.color}
+            listId={listId}
           />
         </div>
       )}

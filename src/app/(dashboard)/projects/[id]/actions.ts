@@ -9,6 +9,7 @@ const CreateTaskSchema = z.object({
   project_id: z.string().uuid(),
   title: z.string().min(1).max(500),
   status_id: z.string().uuid(),
+  list_id: z.string().uuid(),
 });
 
 const UpdateTaskTitleSchema = z.object({
@@ -58,6 +59,25 @@ const CreateCommentSchema = z.object({
   project_id: z.string().uuid(),
 });
 
+const ReorderTaskSchema = z.object({
+  id: z.string().uuid(),
+  status_id: z.string().uuid(),
+  position: z.number(),
+  project_id: z.string().uuid(),
+});
+
+const UpdateTaskListSchema = z.object({
+  id: z.string().uuid(),
+  list_id: z.string().uuid(),
+  project_id: z.string().uuid(),
+});
+
+const UpdateTaskTagSchema = z.object({
+  id: z.string().uuid(),
+  tag_id: z.string().uuid().nullable(),
+  project_id: z.string().uuid(),
+});
+
 const DeleteCommentSchema = z.object({
   id: z.string().uuid(),
   project_id: z.string().uuid(),
@@ -68,6 +88,7 @@ export async function createTask(formData: {
   project_id: string;
   title: string;
   status_id: string;
+  list_id: string;
 }) {
   const parsed = CreateTaskSchema.safeParse(formData);
   if (!parsed.success) return { error: parsed.error.issues[0].message };
@@ -85,6 +106,7 @@ export async function createTask(formData: {
     project_id: parsed.data.project_id,
     title: parsed.data.title,
     status_id: parsed.data.status_id,
+    list_id: parsed.data.list_id,
     created_by: user.id,
     position: Math.floor(Date.now() / 1000) % 2147483647,
   });
@@ -297,6 +319,82 @@ export async function createComment(formData: {
 
   revalidatePath(`/projects/${parsed.data.project_id}`);
   return { comment: { ...data, user_id: user.id } };
+}
+
+export async function reorderTask(formData: {
+  id: string;
+  status_id: string;
+  position: number;
+  project_id: string;
+}) {
+  const parsed = ReorderTaskSchema.safeParse(formData);
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const { error } = await supabase
+    .from("tasks")
+    .update({ status_id: parsed.data.status_id, position: parsed.data.position })
+    .eq("id", parsed.data.id);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/projects/${parsed.data.project_id}`);
+  return { success: true };
+}
+
+export async function updateTaskList(formData: {
+  id: string;
+  list_id: string;
+  project_id: string;
+}) {
+  const parsed = UpdateTaskListSchema.safeParse(formData);
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const { error } = await supabase
+    .from("tasks")
+    .update({ list_id: parsed.data.list_id })
+    .eq("id", parsed.data.id);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/projects/${parsed.data.project_id}`);
+  return { success: true };
+}
+
+export async function updateTaskTag(formData: {
+  id: string;
+  tag_id: string | null;
+  project_id: string;
+}) {
+  const parsed = UpdateTaskTagSchema.safeParse(formData);
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const { error } = await supabase
+    .from("tasks")
+    .update({ tag_id: parsed.data.tag_id })
+    .eq("id", parsed.data.id);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/projects/${parsed.data.project_id}`);
+  return { success: true };
 }
 
 export async function deleteComment(formData: {

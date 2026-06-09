@@ -30,7 +30,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { TiptapEditor } from "@/components/tiptap-editor";
-import { Flag, CalendarDays, Trash2, User, Send } from "lucide-react";
+import { Flag, CalendarDays, Trash2, User, Send, List, Tag } from "lucide-react";
 import { PRIORITY_CONFIG, getInitials } from "@/lib/task-utils";
 import type { Priority } from "@/lib/task-utils";
 import {
@@ -41,14 +41,23 @@ import {
   updateTaskDueDate,
   updateTaskDescription,
   deleteTask,
+  updateTaskList,
+  updateTaskTag,
   createComment,
   deleteComment,
 } from "./actions";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import type { StatusInfo } from "./status-group";
-import type { MemberInfo } from "./task-row";
+import type { MemberInfo, TagInfo } from "./task-row";
 import type { Json } from "@/lib/types/database";
+
+export type ListInfo = {
+  id: string;
+  name: string;
+};
+
+export type { TagInfo };
 
 type FullTask = {
   id: string;
@@ -58,6 +67,8 @@ type FullTask = {
   assignee_id: string | null;
   priority: Priority | null;
   due_date: string | null;
+  list_id: string | null;
+  tag_id: string | null;
 };
 
 type Comment = {
@@ -71,6 +82,8 @@ interface TaskDetailSheetProps {
   taskId: string | null;
   statuses: StatusInfo[];
   members: MemberInfo[];
+  tags: TagInfo[];
+  lists: ListInfo[];
   projectId: string;
   onClose: () => void;
 }
@@ -79,6 +92,8 @@ export function TaskDetailSheet({
   taskId,
   statuses,
   members,
+  tags,
+  lists,
   projectId,
   onClose,
 }: TaskDetailSheetProps) {
@@ -102,7 +117,7 @@ export function TaskDetailSheet({
       const [taskRes, commentsRes] = await Promise.all([
         supabase
           .from("tasks")
-          .select("id, title, description, status_id, assignee_id, priority, due_date")
+          .select("id, title, description, status_id, assignee_id, priority, due_date, list_id, tag_id")
           .eq("id", taskId)
           .single(),
         supabase
@@ -214,6 +229,42 @@ export function TaskDetailSheet({
       if (result.error) {
         toast.error(result.error);
         setTask((t) => (t ? { ...t, due_date: prev } : null));
+      }
+    },
+    [task, projectId]
+  );
+
+  const handleListChange = useCallback(
+    async (listId: string | null) => {
+      if (!task || !listId) return;
+      const prev = task.list_id;
+      setTask((t) => (t ? { ...t, list_id: listId } : null));
+      const result = await updateTaskList({
+        id: task.id,
+        list_id: listId,
+        project_id: projectId,
+      });
+      if (result.error) {
+        toast.error(result.error);
+        setTask((t) => (t ? { ...t, list_id: prev } : null));
+      }
+    },
+    [task, projectId]
+  );
+
+  const handleTagChange = useCallback(
+    async (tagId: string | null) => {
+      if (!task) return;
+      const prev = task.tag_id;
+      setTask((t) => (t ? { ...t, tag_id: tagId } : null));
+      const result = await updateTaskTag({
+        id: task.id,
+        tag_id: tagId,
+        project_id: projectId,
+      });
+      if (result.error) {
+        toast.error(result.error);
+        setTask((t) => (t ? { ...t, tag_id: prev } : null));
       }
     },
     [task, projectId]
@@ -456,6 +507,85 @@ export function TaskDetailSheet({
                       </Button>
                     )}
                   </div>
+
+                  {/* Tag */}
+                  <span className="text-muted-foreground">Tag</span>
+                  <Select
+                    value={task.tag_id ?? "__none__"}
+                    onValueChange={(v: string | null) =>
+                      handleTagChange(!v || v === "__none__" ? null : v)
+                    }
+                  >
+                    <SelectTrigger size="sm">
+                      <SelectValue>
+                        {task.tag_id ? (
+                          (() => {
+                            const tag = tags.find((t) => t.id === task.tag_id);
+                            return tag ? (
+                              <>
+                                <span
+                                  className="h-2 w-2 rounded-full"
+                                  style={{ backgroundColor: tag.color }}
+                                />
+                                {tag.name}
+                              </>
+                            ) : (
+                              <>
+                                <Tag className="h-4 w-4 text-muted-foreground" />
+                                No tag
+                              </>
+                            );
+                          })()
+                        ) : (
+                          <>
+                            <Tag className="h-4 w-4 text-muted-foreground" />
+                            No tag
+                          </>
+                        )}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">
+                        <Tag className="h-4 w-4 text-muted-foreground" />
+                        No tag
+                      </SelectItem>
+                      {tags.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          <span
+                            className="h-2 w-2 rounded-full"
+                            style={{ backgroundColor: t.color }}
+                          />
+                          {t.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  {/* List */}
+                  {lists.length > 1 && (
+                    <>
+                      <span className="text-muted-foreground">List</span>
+                      <Select
+                        value={task.list_id ?? ""}
+                        onValueChange={handleListChange}
+                      >
+                        <SelectTrigger size="sm">
+                          <SelectValue>
+                            <List className="h-3.5 w-3.5 text-muted-foreground" />
+                            {lists.find((l) => l.id === task.list_id)?.name ?? "No list"}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {lists.map((l) => (
+                            <SelectItem key={l.id} value={l.id}>
+                              <List className="h-3.5 w-3.5 text-muted-foreground" />
+                              {l.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </>
+                  )}
                 </div>
 
                 {/* Description */}
