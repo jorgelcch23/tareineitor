@@ -3,8 +3,8 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import Image from "next/image";
 import {
-  FolderKanban,
   Plus,
   ChevronRight,
   ChevronsUpDown,
@@ -14,6 +14,8 @@ import {
   Trash2,
   Settings,
   List,
+  Check,
+  FileText,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -22,6 +24,16 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { updateProject, deleteProject } from "@/app/(dashboard)/actions";
 import { createList, renameList, deleteList } from "@/app/(dashboard)/projects/[id]/list-actions";
@@ -45,12 +57,26 @@ type Profile = {
   role: string;
 };
 
+type WorkspaceInfo = {
+  id: string;
+  name: string;
+  logo_url: string | null;
+};
+
+type WorkspaceWithRole = WorkspaceInfo & {
+  role: "owner" | "admin" | "member";
+};
+
 export function Sidebar({
   projects,
   profile,
+  workspace,
+  allWorkspaces = [],
 }: {
   projects: ProjectWithLists[];
   profile: Profile | null;
+  workspace?: WorkspaceInfo | null;
+  allWorkspaces?: WorkspaceWithRole[];
 }) {
   const pathname = usePathname();
 
@@ -61,7 +87,7 @@ export function Sidebar({
       {/* Logo */}
       <div className="flex items-center px-3" style={{ height: "var(--eleven-header-height, 3.5rem)" }}>
         <div className="flex items-center gap-2 px-2">
-          <FolderKanban className="h-[18px] w-[18px] text-gray-950 dark:text-gray-50" />
+          <Image src="/tasknator-logo.png" alt="Tasknator" width={20} height={20} className="shrink-0" />
           <span className="text-sm font-semibold text-gray-950 dark:text-gray-50 tracking-tight">
             Tasknator
           </span>
@@ -71,29 +97,10 @@ export function Sidebar({
       {/* Navigation */}
       <nav className="flex h-full flex-1 flex-col min-h-0">
         {/* Workspace switcher */}
-        <div className="px-3.5 w-full mt-2">
-          <button
-            type="button"
-            className="group/ws w-full rounded-[10px] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700"
-            style={{ boxShadow: "0 2px 4px rgba(0,0,0,0.04), 0 0px 1px rgba(0,0,0,0.15)" }}
-          >
-            <div className="flex items-center gap-2 px-2 min-w-0">
-              <div className="flex items-center justify-center h-8">
-                <div className="w-5 h-5 flex items-center justify-center rounded-md bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-                  <span className="text-[10px] font-bold text-gray-600 dark:text-gray-300">
-                    {profile?.full_name?.[0]?.toUpperCase() ?? "T"}
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center justify-between flex-1 h-9 min-w-0">
-                <p className="text-sm font-medium whitespace-nowrap truncate text-gray-950 dark:text-gray-50">
-                  {profile?.full_name ?? "Workspace"}
-                </p>
-                <ChevronsUpDown className="ml-auto mr-0.5 h-4 w-4 shrink-0 text-gray-500" />
-              </div>
-            </div>
-          </button>
-        </div>
+        <WorkspaceSwitcher
+          workspace={workspace ?? null}
+          allWorkspaces={allWorkspaces}
+        />
 
         {/* Scrollable content */}
         <div className="flex h-full flex-1 flex-col min-h-0 overflow-y-auto overflow-x-hidden mt-2">
@@ -161,6 +168,133 @@ export function Sidebar({
         )}
       </nav>
     </aside>
+  );
+}
+
+/* ─── Workspace switcher ─── */
+
+function WorkspaceSwitcher({
+  workspace,
+  allWorkspaces,
+}: {
+  workspace: WorkspaceInfo | null;
+  allWorkspaces: WorkspaceWithRole[];
+}) {
+  const router = useRouter();
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [isPending, startTransition] = useTransition();
+
+  const handleSwitch = (wsId: string) => {
+    startTransition(async () => {
+      const { switchWorkspace } = await import("@/app/(dashboard)/workspace-actions");
+      await switchWorkspace(wsId);
+      router.push("/");
+      router.refresh();
+    });
+  };
+
+  const handleCreate = () => {
+    if (!newName.trim()) return;
+    startTransition(async () => {
+      const { createWorkspace } = await import("@/app/(onboarding)/onboarding/actions");
+      const result = await createWorkspace({ name: newName.trim() });
+      if (result.error) {
+        toast.error(result.error);
+        return;
+      }
+      if (result.workspace_id) {
+        const { switchWorkspace } = await import("@/app/(dashboard)/workspace-actions");
+        await switchWorkspace(result.workspace_id);
+      }
+      toast.success("Workspace created");
+      setNewName("");
+      setCreateOpen(false);
+      router.push("/");
+      router.refresh();
+    });
+  };
+
+  return (
+    <>
+      <div className="px-3.5 w-full mt-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <button
+                type="button"
+                className="group/ws w-full rounded-[10px] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700"
+                style={{ boxShadow: "0 2px 4px rgba(0,0,0,0.04), 0 0px 1px rgba(0,0,0,0.15)" }}
+              />
+            }
+          >
+            <div className="flex items-center gap-2 px-2 min-w-0">
+              <div className="flex items-center justify-center h-8">
+                <div className="w-5 h-5 flex items-center justify-center rounded-md bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                  <span className="text-[10px] font-bold text-gray-600 dark:text-gray-300">
+                    {workspace?.name?.[0]?.toUpperCase() ?? "W"}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center justify-between flex-1 h-9 min-w-0">
+                <p className="text-sm font-medium whitespace-nowrap truncate text-gray-950 dark:text-gray-50">
+                  {workspace?.name ?? "Workspace"}
+                </p>
+                <ChevronsUpDown className="ml-auto mr-0.5 h-4 w-4 shrink-0 text-gray-500" />
+              </div>
+            </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="bottom" align="start" className="w-56">
+            {allWorkspaces.map((ws) => (
+              <DropdownMenuItem
+                key={ws.id}
+                onClick={() => ws.id !== workspace?.id && handleSwitch(ws.id)}
+              >
+                <div className="w-5 h-5 flex items-center justify-center rounded-md bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shrink-0">
+                  <span className="text-[10px] font-bold text-gray-600 dark:text-gray-300">
+                    {ws.name[0]?.toUpperCase() ?? "W"}
+                  </span>
+                </div>
+                <span className="truncate">{ws.name}</span>
+                {ws.id === workspace?.id && (
+                  <Check className="ml-auto h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                )}
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => setCreateOpen(true)}>
+              <Plus className="h-4 w-4" />
+              Create Workspace
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      {/* Create workspace dialog */}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Workspace</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-2">
+            <Label htmlFor="ws-name">Workspace name</Label>
+            <Input
+              id="ws-name"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="My Company"
+              onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+              disabled={isPending}
+            />
+          </div>
+          <DialogFooter>
+            <Button onClick={handleCreate} disabled={isPending || !newName.trim()}>
+              {isPending ? "Creating..." : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -371,6 +505,28 @@ function ProjectItem({
               />
             </li>
           )}
+
+          {/* Files link */}
+          <li className="w-full">
+            <div className="relative w-full rounded-[10px] hover:bg-gray-100 dark:hover:bg-gray-800">
+              <Link
+                href={`/projects/${project.id}/files`}
+                className={cn(
+                  "relative rounded-[10px] overflow-hidden flex items-center gap-2 px-2 min-w-0 transition-colors w-full",
+                  pathname === `/projects/${project.id}/files`
+                    ? "bg-gray-100 dark:bg-gray-800 text-gray-950 dark:text-gray-50"
+                    : "text-gray-600 dark:text-gray-400 hover:text-gray-950 dark:hover:text-gray-50"
+                )}
+              >
+                <div className="flex items-center justify-center h-8">
+                  <FileText className="h-4 w-4" />
+                </div>
+                <p className="text-sm font-medium whitespace-nowrap truncate">
+                  Files
+                </p>
+              </Link>
+            </div>
+          </li>
         </ul>
       )}
     </li>

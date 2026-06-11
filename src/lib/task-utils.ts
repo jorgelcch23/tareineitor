@@ -23,7 +23,7 @@ export function formatDueDate(dateStr: string | null): { text: string; overdue: 
   }
 
   const overdue = isPast(date);
-  return { text: format(date, "MMM d"), overdue };
+  return { text: format(date, "EEE, MMM d, yyyy"), overdue };
 }
 
 export function getInitials(name: string | null): string {

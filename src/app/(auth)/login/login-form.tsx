@@ -12,7 +12,6 @@ export function LoginForm() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const supabase = createClient();
@@ -32,14 +31,11 @@ export function LoginForm() {
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: {
-            data: { full_name: fullName },
-          },
         });
         if (error) throw error;
-        toast.success("Account created! You can now sign in.");
-        setIsLogin(true);
-        setPassword("");
+        toast.success("Account created!");
+        router.push("/onboarding");
+        router.refresh();
         return;
       }
       router.push("/");
@@ -54,18 +50,6 @@ export function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {!isLogin && (
-        <div className="space-y-2">
-          <Label htmlFor="fullName">Full name</Label>
-          <Input
-            id="fullName"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            placeholder="John Doe"
-            required={!isLogin}
-          />
-        </div>
-      )}
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
         <Input

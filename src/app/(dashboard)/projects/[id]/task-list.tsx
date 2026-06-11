@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useMemo, useEffect, useCallback, useTransition } from "react";
+import { useState, useRef, useMemo, useEffect, useCallback, useTransition, useId } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -16,13 +16,16 @@ import {
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { GripVertical } from "lucide-react";
 import { ProjectHeader } from "./project-header";
+import { TaskToolbar } from "./task-toolbar";
 import { StatusGroup } from "./status-group";
 import { TaskDetailSheet } from "./task-detail-sheet";
+import { CreateTaskDialog } from "./create-task-dialog";
 import type { ListInfo } from "./task-detail-sheet";
 import { reorderTask } from "./actions";
 import { toast } from "sonner";
 import type { StatusInfo } from "./status-group";
 import type { TaskRowData, MemberInfo, TagInfo } from "./task-row";
+import type { Priority } from "@/lib/task-utils";
 
 interface TaskListProps {
   projectId: string;
@@ -47,21 +50,22 @@ export function TaskList({
   lists,
   currentUser,
 }: TaskListProps) {
+  const dndId = useId();
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [filterAssigneeId, setFilterAssigneeId] = useState<string | null>(null);
+  const [filterPriority, setFilterPriority] = useState<Priority | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
   // Local groups for optimistic drag updates
   const [localGroups, setLocalGroups] = useState(groupedTasks);
 
-  // Sync from server when task arrangement changes
+  // Sync from server when any task data changes
   const serverFingerprint = useMemo(
-    () =>
-      statuses
-        .map((s) => (groupedTasks[s.id] ?? []).map((t) => t.id).join(","))
-        .join("|"),
-    [groupedTasks, statuses]
+    () => JSON.stringify(groupedTasks),
+    [groupedTasks]
   );
   useEffect(() => {
     setLocalGroups(groupedTasks);
@@ -189,27 +193,47 @@ export function TaskList({
     ? Object.values(localGroups).flat().find((t) => t.id === activeId)
     : null;
 
-  // Focus first inline add when header "Add Task" is clicked
   const containerRef = useRef<HTMLDivElement>(null);
-  const handleAddTask = () => {
-    const firstInput = containerRef.current?.querySelector<HTMLInputElement>(
-      'input[placeholder="New Task"]'
-    );
-    firstInput?.focus();
-  };
+
+  // Filter tasks by search + assignee + priority
+  const filterTasks = useCallback(
+    (tasks: TaskRowData[]) => {
+      let result = tasks;
+      if (filterAssigneeId) {
+        result = result.filter((t) => t.assignee_id === filterAssigneeId);
+      }
+      if (filterPriority) {
+        result = result.filter((t) => t.priority === filterPriority);
+      }
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        result = result.filter((t) => t.title.toLowerCase().includes(q));
+      }
+      return result;
+    },
+    [filterAssigneeId, filterPriority, searchQuery]
+  );
 
   return (
     <div ref={containerRef} className="flex h-full flex-col">
       <ProjectHeader
         projectName={projectName}
-        members={members}
         currentUser={currentUser}
+      />
+
+      <TaskToolbar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
         filterAssigneeId={filterAssigneeId}
-        onFilterChange={setFilterAssigneeId}
-        onAddTask={handleAddTask}
+        onFilterAssigneeChange={setFilterAssigneeId}
+        filterPriority={filterPriority}
+        onFilterPriorityChange={setFilterPriority}
+        members={members}
+        onCreateTask={() => setCreateDialogOpen(true)}
       />
 
       <DndContext
+        id={dndId}
         sensors={sensors}
         collisionDetection={closestCorners}
         onDragStart={onDragStart}
@@ -217,12 +241,10 @@ export function TaskList({
         onDragEnd={onDragEnd}
         onDragCancel={onDragCancel}
       >
-        <div className="flex-1 overflow-y-auto border-t border-border px-4 py-4 space-y-6">
+        <div className="flex-1 overflow-y-auto border-t border-border px-4 py-4 space-y-8">
           {statuses.map((status) => {
             const tasks = localGroups[status.id] ?? [];
-            const filtered = filterAssigneeId
-              ? tasks.filter((t) => t.assignee_id === filterAssigneeId)
-              : tasks;
+            const filtered = filterTasks(tasks);
 
             return (
               <StatusGroup
@@ -258,6 +280,16 @@ export function TaskList({
         lists={lists}
         projectId={projectId}
         onClose={() => setSelectedTaskId(null)}
+      />
+
+      <CreateTaskDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        projectId={projectId}
+        listId={listId}
+        statuses={statuses}
+        members={members}
+        tags={tags}
       />
     </div>
   );

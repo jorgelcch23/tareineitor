@@ -10,6 +10,10 @@ const CreateTaskSchema = z.object({
   title: z.string().min(1).max(500),
   status_id: z.string().uuid(),
   list_id: z.string().uuid(),
+  assignee_id: z.string().uuid().nullable().optional(),
+  priority: z.enum(["urgent", "high", "normal", "low"]).nullable().optional(),
+  due_date: z.string().nullable().optional(),
+  tag_id: z.string().uuid().nullable().optional(),
 });
 
 const UpdateTaskTitleSchema = z.object({
@@ -89,6 +93,10 @@ export async function createTask(formData: {
   title: string;
   status_id: string;
   list_id: string;
+  assignee_id?: string | null;
+  priority?: string | null;
+  due_date?: string | null;
+  tag_id?: string | null;
 }) {
   const parsed = CreateTaskSchema.safeParse(formData);
   if (!parsed.success) return { error: parsed.error.issues[0].message };
@@ -109,6 +117,10 @@ export async function createTask(formData: {
     list_id: parsed.data.list_id,
     created_by: user.id,
     position: Math.floor(Date.now() / 1000) % 2147483647,
+    ...(parsed.data.assignee_id && { assignee_id: parsed.data.assignee_id }),
+    ...(parsed.data.priority && { priority: parsed.data.priority }),
+    ...(parsed.data.due_date && { due_date: parsed.data.due_date }),
+    ...(parsed.data.tag_id && { tag_id: parsed.data.tag_id }),
   });
 
   if (error) return { error: error.message };

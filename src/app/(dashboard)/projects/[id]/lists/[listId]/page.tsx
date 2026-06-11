@@ -26,7 +26,7 @@ export default async function ListPage({
       .order("position"),
     supabase
       .from("tasks")
-      .select("id, title, status_id, assignee_id, priority, due_date, position, list_id, tag_id, created_at")
+      .select("id, title, description, status_id, assignee_id, priority, due_date, position, list_id, tag_id, created_at")
       .eq("project_id", id)
       .eq("list_id", listId)
       .order("position"),
@@ -73,6 +73,7 @@ export default async function ListPage({
     tag_id: t.tag_id ?? null,
     priority: t.priority as TaskRowData["priority"],
     comment_count: 0,
+    has_description: t.description != null && JSON.stringify(t.description) !== "null",
   }));
 
   // Group tasks by status_id

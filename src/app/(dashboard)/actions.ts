@@ -27,6 +27,16 @@ export async function createProject(formData: { name: string; description?: stri
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
 
+  // Get user's workspace
+  const { data: membership } = await supabase
+    .from("workspace_members")
+    .select("workspace_id")
+    .eq("user_id", user.id)
+    .limit(1)
+    .single();
+
+  if (!membership) return { error: "No workspace found" };
+
   const id = crypto.randomUUID();
 
   const { error } = await supabase
@@ -36,6 +46,7 @@ export async function createProject(formData: { name: string; description?: stri
       name: parsed.data.name,
       description: parsed.data.description || null,
       created_by: user.id,
+      workspace_id: membership.workspace_id,
     });
 
   if (error) return { error: error.message };

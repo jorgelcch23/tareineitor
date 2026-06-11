@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { PageHeader } from "@/components/page-header";
 import { ProjectMembersList } from "./project-members-list";
 import { ProjectSettingsForm } from "./project-settings-form";
 
@@ -25,11 +26,12 @@ export default async function ProjectSettingsPage({
 
   if (!project) notFound();
 
-  // Get current user's profile (for workspace admin check)
-  const { data: currentProfile } = await supabase
-    .from("profiles")
+  // Get current user's workspace role
+  const { data: wsMembership } = await supabase
+    .from("workspace_members")
     .select("role")
-    .eq("id", user.id)
+    .eq("user_id", user.id)
+    .limit(1)
     .single();
 
   // Get project members with their profiles
@@ -44,7 +46,7 @@ export default async function ProjectSettingsPage({
     (m) => m.user_id === user.id
   );
   const isWorkspaceAdmin =
-    currentProfile?.role === "owner" || currentProfile?.role === "admin";
+    wsMembership?.role === "owner" || wsMembership?.role === "admin";
   const isProjectAdmin =
     isWorkspaceAdmin || currentMembership?.role === "admin";
 
@@ -66,28 +68,41 @@ export default async function ProjectSettingsPage({
     role: m.role as "admin" | "member",
   }));
 
+  // Get current user's profile for header
+  const { data: currentProfile } = await supabase
+    .from("profiles")
+    .select("full_name, avatar_url")
+    .eq("id", user.id)
+    .single();
+
   return (
-    <div className="mx-auto max-w-3xl p-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold">Project Settings</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{project.name}</p>
-      </div>
+    <div className="flex flex-col h-full">
+      <PageHeader
+        title="Project Settings"
+        currentUser={{
+          full_name: currentProfile?.full_name ?? null,
+          avatar_url: currentProfile?.avatar_url ?? null,
+        }}
+      />
+      <div className="mx-auto max-w-3xl w-full p-8">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold">Project Settings</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{project.name}</p>
+        </div>
 
-      <div className="space-y-8">
-        {/* Project details */}
-        <ProjectSettingsForm
-          project={project}
-          isProjectAdmin={isProjectAdmin}
-        />
-
-        {/* Members */}
-        <ProjectMembersList
-          projectId={id}
-          members={members}
-          availableUsers={availableUsers}
-          currentUserId={user.id}
-          isProjectAdmin={isProjectAdmin}
-        />
+        <div className="space-y-8">
+          <ProjectSettingsForm
+            project={project}
+            isProjectAdmin={isProjectAdmin}
+          />
+          <ProjectMembersList
+            projectId={id}
+            members={members}
+            availableUsers={availableUsers}
+            currentUserId={user.id}
+            isProjectAdmin={isProjectAdmin}
+          />
+        </div>
       </div>
     </div>
   );

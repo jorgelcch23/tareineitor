@@ -100,6 +100,7 @@ export function TaskDetailSheet({
   const [task, setTask] = useState<FullTask | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(false);
+  const [, startTransition] = useTransition();
 
   // Fetch task + comments on-demand
   useEffect(() => {
@@ -145,188 +146,210 @@ export function TaskDetailSheet({
   }, [taskId]);
 
   const handleTitleBlur = useCallback(
-    async (newTitle: string) => {
+    (newTitle: string) => {
       if (!task || newTitle === task.title) return;
       setTask((prev) => (prev ? { ...prev, title: newTitle } : null));
-      const result = await updateTaskTitle({
-        id: task.id,
-        title: newTitle,
-        project_id: projectId,
+      startTransition(async () => {
+        const result = await updateTaskTitle({
+          id: task.id,
+          title: newTitle,
+          project_id: projectId,
+        });
+        if (result.error) {
+          toast.error(result.error);
+          setTask((prev) => (prev ? { ...prev, title: task.title } : null));
+        }
       });
-      if (result.error) {
-        toast.error(result.error);
-        setTask((prev) => (prev ? { ...prev, title: task.title } : null));
-      }
     },
-    [task, projectId]
+    [task, projectId, startTransition]
   );
 
   const handleStatusChange = useCallback(
-    async (statusId: string | null) => {
+    (statusId: string | null) => {
       if (!task || !statusId) return;
       const prev = task.status_id;
       setTask((t) => (t ? { ...t, status_id: statusId } : null));
-      const result = await updateTaskStatus({
-        id: task.id,
-        status_id: statusId,
-        project_id: projectId,
+      startTransition(async () => {
+        const result = await updateTaskStatus({
+          id: task.id,
+          status_id: statusId,
+          project_id: projectId,
+        });
+        if (result.error) {
+          toast.error(result.error);
+          setTask((t) => (t ? { ...t, status_id: prev } : null));
+        }
       });
-      if (result.error) {
-        toast.error(result.error);
-        setTask((t) => (t ? { ...t, status_id: prev } : null));
-      }
     },
-    [task, projectId]
+    [task, projectId, startTransition]
   );
 
   const handlePriorityChange = useCallback(
-    async (priority: Priority | null) => {
+    (priority: Priority | null) => {
       if (!task) return;
       const prev = task.priority;
       setTask((t) => (t ? { ...t, priority } : null));
-      const result = await updateTaskPriority({
-        id: task.id,
-        priority,
-        project_id: projectId,
+      startTransition(async () => {
+        const result = await updateTaskPriority({
+          id: task.id,
+          priority,
+          project_id: projectId,
+        });
+        if (result.error) {
+          toast.error(result.error);
+          setTask((t) => (t ? { ...t, priority: prev } : null));
+        }
       });
-      if (result.error) {
-        toast.error(result.error);
-        setTask((t) => (t ? { ...t, priority: prev } : null));
-      }
     },
-    [task, projectId]
+    [task, projectId, startTransition]
   );
 
   const handleAssigneeChange = useCallback(
-    async (assigneeId: string | null) => {
+    (assigneeId: string | null) => {
       if (!task) return;
       const prev = task.assignee_id;
       setTask((t) => (t ? { ...t, assignee_id: assigneeId } : null));
-      const result = await updateTaskAssignee({
-        id: task.id,
-        assignee_id: assigneeId,
-        project_id: projectId,
+      startTransition(async () => {
+        const result = await updateTaskAssignee({
+          id: task.id,
+          assignee_id: assigneeId,
+          project_id: projectId,
+        });
+        if (result.error) {
+          toast.error(result.error);
+          setTask((t) => (t ? { ...t, assignee_id: prev } : null));
+        }
       });
-      if (result.error) {
-        toast.error(result.error);
-        setTask((t) => (t ? { ...t, assignee_id: prev } : null));
-      }
     },
-    [task, projectId]
+    [task, projectId, startTransition]
   );
 
   const handleDueDateChange = useCallback(
-    async (date: Date | undefined) => {
+    (date: Date | undefined) => {
       if (!task) return;
       const prev = task.due_date;
       const isoDate = date ? date.toISOString() : null;
       setTask((t) => (t ? { ...t, due_date: isoDate } : null));
-      const result = await updateTaskDueDate({
-        id: task.id,
-        due_date: isoDate,
-        project_id: projectId,
+      startTransition(async () => {
+        const result = await updateTaskDueDate({
+          id: task.id,
+          due_date: isoDate,
+          project_id: projectId,
+        });
+        if (result.error) {
+          toast.error(result.error);
+          setTask((t) => (t ? { ...t, due_date: prev } : null));
+        }
       });
-      if (result.error) {
-        toast.error(result.error);
-        setTask((t) => (t ? { ...t, due_date: prev } : null));
-      }
     },
-    [task, projectId]
+    [task, projectId, startTransition]
   );
 
   const handleListChange = useCallback(
-    async (listId: string | null) => {
+    (listId: string | null) => {
       if (!task || !listId) return;
       const prev = task.list_id;
       setTask((t) => (t ? { ...t, list_id: listId } : null));
-      const result = await updateTaskList({
-        id: task.id,
-        list_id: listId,
-        project_id: projectId,
+      startTransition(async () => {
+        const result = await updateTaskList({
+          id: task.id,
+          list_id: listId,
+          project_id: projectId,
+        });
+        if (result.error) {
+          toast.error(result.error);
+          setTask((t) => (t ? { ...t, list_id: prev } : null));
+        }
       });
-      if (result.error) {
-        toast.error(result.error);
-        setTask((t) => (t ? { ...t, list_id: prev } : null));
-      }
     },
-    [task, projectId]
+    [task, projectId, startTransition]
   );
 
   const handleTagChange = useCallback(
-    async (tagId: string | null) => {
+    (tagId: string | null) => {
       if (!task) return;
       const prev = task.tag_id;
       setTask((t) => (t ? { ...t, tag_id: tagId } : null));
-      const result = await updateTaskTag({
-        id: task.id,
-        tag_id: tagId,
-        project_id: projectId,
+      startTransition(async () => {
+        const result = await updateTaskTag({
+          id: task.id,
+          tag_id: tagId,
+          project_id: projectId,
+        });
+        if (result.error) {
+          toast.error(result.error);
+          setTask((t) => (t ? { ...t, tag_id: prev } : null));
+        }
       });
-      if (result.error) {
-        toast.error(result.error);
-        setTask((t) => (t ? { ...t, tag_id: prev } : null));
-      }
     },
-    [task, projectId]
+    [task, projectId, startTransition]
   );
 
   const handleDescriptionSave = useCallback(
-    async (description: Json) => {
+    (description: Json) => {
       if (!task) return;
-      const result = await updateTaskDescription({
-        id: task.id,
-        description,
-        project_id: projectId,
+      startTransition(async () => {
+        const result = await updateTaskDescription({
+          id: task.id,
+          description,
+          project_id: projectId,
+        });
+        if (result.error) toast.error(result.error);
       });
-      if (result.error) toast.error(result.error);
     },
-    [task, projectId]
+    [task, projectId, startTransition]
   );
 
-  const handleDelete = useCallback(async () => {
+  const handleDelete = useCallback(() => {
     if (!task) return;
-    const result = await deleteTask({
-      id: task.id,
-      project_id: projectId,
-    });
-    if (result.error) {
-      toast.error(result.error);
-    } else {
-      toast.success("Task deleted");
-      onClose();
-    }
-  }, [task, projectId, onClose]);
-
-  const handleAddComment = useCallback(
-    async (body: string) => {
-      if (!task) return;
-      const result = await createComment({
-        task_id: task.id,
-        body,
-        project_id: projectId,
-      });
-      if (result.error) {
-        toast.error(result.error);
-      } else if (result.comment) {
-        setComments((prev) => [...prev, result.comment as Comment]);
-      }
-    },
-    [task, projectId]
-  );
-
-  const handleDeleteComment = useCallback(
-    async (commentId: string) => {
-      const result = await deleteComment({
-        id: commentId,
+    startTransition(async () => {
+      const result = await deleteTask({
+        id: task.id,
         project_id: projectId,
       });
       if (result.error) {
         toast.error(result.error);
       } else {
-        setComments((prev) => prev.filter((c) => c.id !== commentId));
+        toast.success("Task deleted");
+        onClose();
       }
+    });
+  }, [task, projectId, onClose, startTransition]);
+
+  const handleAddComment = useCallback(
+    (body: string) => {
+      if (!task) return;
+      startTransition(async () => {
+        const result = await createComment({
+          task_id: task.id,
+          body,
+          project_id: projectId,
+        });
+        if (result.error) {
+          toast.error(result.error);
+        } else if (result.comment) {
+          setComments((prev) => [...prev, result.comment as Comment]);
+        }
+      });
     },
-    [projectId]
+    [task, projectId, startTransition]
+  );
+
+  const handleDeleteComment = useCallback(
+    (commentId: string) => {
+      startTransition(async () => {
+        const result = await deleteComment({
+          id: commentId,
+          project_id: projectId,
+        });
+        if (result.error) {
+          toast.error(result.error);
+        } else {
+          setComments((prev) => prev.filter((c) => c.id !== commentId));
+        }
+      });
+    },
+    [projectId, startTransition]
   );
 
   const currentStatus = task
@@ -594,6 +617,7 @@ export function TaskDetailSheet({
                   <TiptapEditor
                     content={task.description}
                     onSave={handleDescriptionSave}
+                    projectId={projectId}
                   />
                 </div>
 
@@ -687,20 +711,17 @@ function CommentsPanel({
 }: {
   comments: Comment[];
   members: MemberInfo[];
-  onAdd: (body: string) => Promise<void>;
-  onDelete: (id: string) => Promise<void>;
+  onAdd: (body: string) => void;
+  onDelete: (id: string) => void;
 }) {
   const [body, setBody] = useState("");
-  const [isPending, startTransition] = useTransition();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!body.trim()) return;
     const text = body.trim();
     setBody("");
-    startTransition(async () => {
-      await onAdd(text);
-    });
+    onAdd(text);
   };
 
   return (
@@ -763,14 +784,13 @@ function CommentsPanel({
           value={body}
           onChange={(e) => setBody(e.target.value)}
           placeholder="Write a comment..."
-          disabled={isPending}
           className="flex-1 bg-transparent text-sm placeholder:text-muted-foreground focus:outline-none disabled:opacity-50"
         />
         <Button
           type="submit"
           size="icon"
           variant="ghost"
-          disabled={isPending || !body.trim()}
+          disabled={!body.trim()}
           className="h-7 w-7 shrink-0"
         >
           <Send className="h-3.5 w-3.5" />

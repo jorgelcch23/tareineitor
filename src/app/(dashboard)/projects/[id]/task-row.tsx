@@ -1,5 +1,6 @@
 "use client";
 
+import { useTransition } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -15,13 +16,12 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Flag, CalendarDays, MessageSquare, GripVertical, User, Tag, X } from "lucide-react";
+import { Flag, CalendarDays, MessageSquare, GripVertical, User, Tag, X, MoreHorizontal, Copy, Trash2, ExternalLink, AlignLeft } from "lucide-react";
 import { PRIORITY_CONFIG, formatDueDate, getInitials } from "@/lib/task-utils";
 import type { Priority } from "@/lib/task-utils";
-import { updateTaskPriority, updateTaskStatus, updateTaskAssignee, updateTaskDueDate, updateTaskTag } from "./actions";
+import { updateTaskPriority, updateTaskStatus, updateTaskAssignee, updateTaskDueDate, updateTaskTag, deleteTask } from "./actions";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { StatusIcon } from "./status-icon";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { StatusInfo } from "./status-group";
@@ -44,6 +44,7 @@ export type TaskRowData = {
   tag_id: string | null;
   created_at: string;
   comment_count: number;
+  has_description: boolean;
 };
 
 export type MemberInfo = {
@@ -54,7 +55,7 @@ export type MemberInfo = {
 
 /** Shared grid for task rows — keep in sync with status-group.tsx, inline-add-task.tsx */
 export const TASK_GRID_COLS =
-  "grid grid-cols-[1fr_120px_160px_160px_160px] items-center";
+  "grid grid-cols-[1fr_140px_120px_120px_120px_100px_40px] items-center";
 
 interface TaskRowProps {
   task: TaskRowData;
@@ -75,6 +76,7 @@ export function TaskRow({
   statusColor,
   onClick,
 }: TaskRowProps) {
+  const [, startTransition] = useTransition();
   const {
     attributes,
     listeners,
@@ -94,50 +96,76 @@ export function TaskRow({
     : null;
   const dueInfo = formatDueDate(task.due_date);
 
-  const handlePriorityChange = async (priority: Priority | null) => {
-    const result = await updateTaskPriority({
-      id: task.id,
-      priority,
-      project_id: projectId,
+  const handlePriorityChange = (priority: Priority | null) => {
+    startTransition(async () => {
+      const result = await updateTaskPriority({
+        id: task.id,
+        priority,
+        project_id: projectId,
+      });
+      if (result.error) toast.error(result.error);
     });
-    if (result.error) toast.error(result.error);
   };
 
-  const handleStatusChange = async (statusId: string) => {
+  const handleStatusChange = (statusId: string) => {
     if (statusId === task.status_id) return;
-    const result = await updateTaskStatus({
-      id: task.id,
-      status_id: statusId,
-      project_id: projectId,
+    startTransition(async () => {
+      const result = await updateTaskStatus({
+        id: task.id,
+        status_id: statusId,
+        project_id: projectId,
+      });
+      if (result.error) toast.error(result.error);
     });
-    if (result.error) toast.error(result.error);
   };
 
-  const handleAssigneeChange = async (assigneeId: string | null) => {
-    const result = await updateTaskAssignee({
-      id: task.id,
-      assignee_id: assigneeId,
-      project_id: projectId,
+  const handleAssigneeChange = (assigneeId: string | null) => {
+    startTransition(async () => {
+      const result = await updateTaskAssignee({
+        id: task.id,
+        assignee_id: assigneeId,
+        project_id: projectId,
+      });
+      if (result.error) toast.error(result.error);
     });
-    if (result.error) toast.error(result.error);
   };
 
-  const handleDueDateChange = async (date: Date | undefined) => {
-    const result = await updateTaskDueDate({
-      id: task.id,
-      due_date: date ? date.toISOString() : null,
-      project_id: projectId,
+  const handleDueDateChange = (date: Date | undefined) => {
+    startTransition(async () => {
+      const result = await updateTaskDueDate({
+        id: task.id,
+        due_date: date ? date.toISOString() : null,
+        project_id: projectId,
+      });
+      if (result.error) toast.error(result.error);
     });
-    if (result.error) toast.error(result.error);
   };
 
-  const handleTagChange = async (tagId: string | null) => {
-    const result = await updateTaskTag({
-      id: task.id,
-      tag_id: tagId,
-      project_id: projectId,
+  const handleTagChange = (tagId: string | null) => {
+    startTransition(async () => {
+      const result = await updateTaskTag({
+        id: task.id,
+        tag_id: tagId,
+        project_id: projectId,
+      });
+      if (result.error) toast.error(result.error);
     });
-    if (result.error) toast.error(result.error);
+  };
+
+  const handleDelete = () => {
+    startTransition(async () => {
+      const result = await deleteTask({
+        id: task.id,
+        project_id: projectId,
+      });
+      if (result.error) toast.error(result.error);
+      else toast.success("Task deleted");
+    });
+  };
+
+  const handleCopyTitle = () => {
+    navigator.clipboard.writeText(task.title);
+    toast.success("Title copied");
   };
 
   const currentTag = task.tag_id ? tags.find((t) => t.id === task.tag_id) : null;
@@ -149,12 +177,12 @@ export function TaskRow({
       {...attributes}
       className={cn(
         TASK_GRID_COLS,
-        "group/task cursor-pointer border-b border-border/40 px-4 py-2 transition-colors hover:bg-muted/50",
+        "group/task cursor-pointer rounded-md px-4 py-2 transition-colors hover:bg-muted/50",
         isDragging && "opacity-40 bg-muted/30"
       )}
       onClick={onClick}
     >
-      {/* NAME — with drag handle + status indicator icon */}
+      {/* NAME — with drag handle + circle + title */}
       <div className="flex items-center gap-1.5 pr-2">
         {/* Drag handle */}
         <button
@@ -166,50 +194,12 @@ export function TaskRow({
           <GripVertical className="h-3.5 w-3.5" />
         </button>
 
-        {/* Status indicator — click to change status */}
-        <div onClick={(e) => e.stopPropagation()}>
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <button
-                  type="button"
-                  className="shrink-0 hover:brightness-110 transition-all"
-                  title="Change status"
-                />
-              }
-            >
-              {(() => {
-                const currentSt = statuses.find((s) => s.id === task.status_id);
-                return (
-                  <StatusIcon
-                    name={currentSt?.name ?? ""}
-                    color={statusColor}
-                    isDone={currentSt?.is_done ?? false}
-                    size={16}
-                  />
-                );
-              })()}
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              {statuses.map((s) => (
-                <DropdownMenuItem
-                  key={s.id}
-                  onClick={() => handleStatusChange(s.id)}
-                >
-                  <StatusIcon
-                    name={s.name}
-                    color={s.color}
-                    isDone={s.is_done}
-                    size={16}
-                  />
-                  <span className="ml-2">{s.name}</span>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-
         <span className="truncate text-sm">{task.title}</span>
+
+        {/* Description indicator */}
+        {task.has_description && (
+          <AlignLeft className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        )}
 
         {/* Comment count — inline after title */}
         {task.comment_count > 0 && (
@@ -220,29 +210,76 @@ export function TaskRow({
         )}
       </div>
 
-      {/* TAG */}
-      <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
+      {/* STATUS */}
+      <div className="flex justify-start" onClick={(e) => e.stopPropagation()}>
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
               <button
                 type="button"
-                className="flex items-center gap-1 rounded-full px-2 py-0.5 text-xs transition-colors hover:bg-muted"
+                className="flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors hover:brightness-90"
+                style={{
+                  backgroundColor: statusColor + "12",
+                  borderColor: statusColor + "30",
+                  color: statusColor,
+                }}
               />
             }
           >
-            {currentTag ? (
-              <span
-                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
-                style={{
-                  backgroundColor: currentTag.color + "20",
-                  color: currentTag.color,
-                }}
+            <span
+              className="h-2.5 w-2.5 shrink-0 rounded-full"
+              style={{ backgroundColor: statusColor }}
+            />
+            {(() => {
+              const currentSt = statuses.find((s) => s.id === task.status_id);
+              return currentSt?.name ?? "Unknown";
+            })()}
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            {statuses.map((s) => (
+              <DropdownMenuItem
+                key={s.id}
+                onClick={() => handleStatusChange(s.id)}
               >
-                {currentTag.name}
-              </span>
+                <span
+                  className="mr-2 h-2.5 w-2.5 rounded-full shrink-0"
+                  style={{ backgroundColor: s.color }}
+                />
+                {s.name}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      {/* TAG */}
+      <div className="flex justify-start" onClick={(e) => e.stopPropagation()}>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <button
+                type="button"
+                className={cn(
+                  "flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors hover:brightness-90",
+                  !currentTag && "border-border/50 text-muted-foreground/40"
+                )}
+                style={
+                  currentTag
+                    ? {
+                        backgroundColor: currentTag.color + "12",
+                        borderColor: currentTag.color + "30",
+                        color: currentTag.color,
+                      }
+                    : undefined
+                }
+              />
+            }
+          >
+            <Tag className="h-3 w-3" />
+            {currentTag ? (
+              <span>{currentTag.name}</span>
             ) : (
-              <Tag className="h-3.5 w-3.5 text-muted-foreground" />
+              <span>Not set</span>
             )}
           </DropdownMenuTrigger>
           <DropdownMenuContent align="center">
@@ -268,7 +305,7 @@ export function TaskRow({
       </div>
 
       {/* ASSIGNEE */}
-      <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
+      <div className="flex justify-start" onClick={(e) => e.stopPropagation()}>
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
@@ -284,7 +321,7 @@ export function TaskRow({
                 <AvatarFallback>{getInitials(assignee.full_name)}</AvatarFallback>
               </Avatar>
             ) : (
-              <User className="h-3.5 w-3.5 text-muted-foreground" />
+              <User className="h-3.5 w-3.5 text-muted-foreground/40" />
             )}
           </DropdownMenuTrigger>
           <DropdownMenuContent align="center">
@@ -312,22 +349,24 @@ export function TaskRow({
       </div>
 
       {/* DUE DATE */}
-      <div className="flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+      <div className="flex items-center justify-start" onClick={(e) => e.stopPropagation()}>
         <Popover>
           <PopoverTrigger
             render={
-              <Button
-                variant="ghost"
-                size="sm"
+              <button
+                type="button"
                 className={cn(
-                  "h-7 px-2 text-xs",
-                  dueInfo?.overdue && "text-red-500 hover:text-red-500"
+                  "text-xs transition-colors hover:text-foreground",
+                  dueInfo?.overdue
+                    ? "text-red-500"
+                    : dueInfo
+                      ? "text-muted-foreground"
+                      : "text-muted-foreground/40"
                 )}
               />
             }
           >
-            <CalendarDays className="mr-1 h-3 w-3" />
-            {dueInfo ? dueInfo.text : <span className="text-muted-foreground">No date</span>}
+            {dueInfo ? dueInfo.text : "Add date"}
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0">
             <Calendar
@@ -352,25 +391,36 @@ export function TaskRow({
       </div>
 
       {/* PRIORITY */}
-      <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
+      <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
+              <button
+                type="button"
+                className={cn(
+                  "flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors hover:brightness-90",
+                  !task.priority && "border-border/50 text-muted-foreground/40"
+                )}
+                style={
+                  task.priority
+                    ? {
+                        backgroundColor: PRIORITY_CONFIG[task.priority].color + "12",
+                        borderColor: PRIORITY_CONFIG[task.priority].color + "30",
+                        color: PRIORITY_CONFIG[task.priority].color,
+                      }
+                    : undefined
+                }
               />
             }
           >
             <Flag
-              className="h-3.5 w-3.5"
-              style={{
-                color: task.priority
-                  ? PRIORITY_CONFIG[task.priority].color
-                  : undefined,
-              }}
+              className="h-3 w-3"
             />
+            {task.priority ? (
+              <span>{PRIORITY_CONFIG[task.priority].label}</span>
+            ) : (
+              <span>Not set</span>
+            )}
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             {(Object.keys(PRIORITY_CONFIG) as Priority[]).map((p) => (
@@ -388,6 +438,41 @@ export function TaskRow({
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => handlePriorityChange(null)}>
               No priority
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      {/* OPTIONS */}
+      <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 opacity-0 group-hover/task:opacity-100 transition-opacity"
+              />
+            }
+          >
+            <MoreHorizontal className="h-4 w-4" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={onClick}>
+              <ExternalLink className="mr-2 h-3.5 w-3.5" />
+              Open task
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleCopyTitle}>
+              <Copy className="mr-2 h-3.5 w-3.5" />
+              Copy title
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={handleDelete}
+              className="text-destructive focus:text-destructive"
+            >
+              <Trash2 className="mr-2 h-3.5 w-3.5" />
+              Delete task
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

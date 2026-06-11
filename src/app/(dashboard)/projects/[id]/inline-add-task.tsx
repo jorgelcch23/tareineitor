@@ -43,10 +43,12 @@ export function InlineAddTask({ projectId, statusId, statusColor, listId }: Inli
       onSubmit={handleSubmit}
       className={`${TASK_GRID_COLS} group/add px-4 py-2`}
     >
-      <div className="flex items-center gap-2">
-        <span className="flex h-4 w-4 shrink-0 items-center justify-center text-[#838383]">
-          <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
+      <div className="flex items-center gap-1.5">
+        {/* Spacer matching drag handle width */}
+        <span className="shrink-0 p-0.5">
+          <span className="h-3.5 w-3.5 block" />
         </span>
+        <Plus className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" strokeWidth={2.5} />
         <input
           type="text"
           value={title}
@@ -57,6 +59,8 @@ export function InlineAddTask({ projectId, statusId, statusColor, listId }: Inli
         />
       </div>
       {/* Empty columns to maintain grid alignment */}
+      <span />
+      <span />
       <span />
       <span />
       <span />

@@ -14,24 +14,95 @@ export type Database = {
           id: string;
           full_name: string | null;
           avatar_url: string | null;
-          role: "owner" | "admin" | "member";
+          onboarding_completed: boolean;
           created_at: string;
         };
         Insert: {
           id: string;
           full_name?: string | null;
           avatar_url?: string | null;
-          role?: "owner" | "admin" | "member";
+          onboarding_completed?: boolean;
           created_at?: string;
         };
         Update: {
           id?: string;
           full_name?: string | null;
           avatar_url?: string | null;
-          role?: "owner" | "admin" | "member";
+          onboarding_completed?: boolean;
           created_at?: string;
         };
         Relationships: [];
+      };
+      workspaces: {
+        Row: {
+          id: string;
+          name: string;
+          logo_url: string | null;
+          created_by: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          logo_url?: string | null;
+          created_by: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          logo_url?: string | null;
+          created_by?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "workspaces_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      workspace_members: {
+        Row: {
+          id: string;
+          workspace_id: string;
+          user_id: string;
+          role: "owner" | "admin" | "member";
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          workspace_id: string;
+          user_id: string;
+          role?: "owner" | "admin" | "member";
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          workspace_id?: string;
+          user_id?: string;
+          role?: "owner" | "admin" | "member";
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "workspace_members_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "workspace_members_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       projects: {
         Row: {
@@ -39,6 +110,7 @@ export type Database = {
           name: string;
           description: string | null;
           created_by: string;
+          workspace_id: string;
           archived: boolean;
           created_at: string;
         };
@@ -47,6 +119,7 @@ export type Database = {
           name: string;
           description?: string | null;
           created_by: string;
+          workspace_id: string;
           archived?: boolean;
           created_at?: string;
         };
@@ -55,6 +128,7 @@ export type Database = {
           name?: string;
           description?: string | null;
           created_by?: string;
+          workspace_id?: string;
           archived?: boolean;
           created_at?: string;
         };
@@ -64,6 +138,13 @@ export type Database = {
             columns: ["created_by"];
             isOneToOne: false;
             referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "projects_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
             referencedColumns: ["id"];
           },
         ];
@@ -310,6 +391,54 @@ export type Database = {
           },
         ];
       };
+      project_files: {
+        Row: {
+          id: string;
+          project_id: string;
+          name: string;
+          storage_path: string;
+          size: number;
+          content_type: string;
+          uploaded_by: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          name: string;
+          storage_path: string;
+          size?: number;
+          content_type?: string;
+          uploaded_by: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          name?: string;
+          storage_path?: string;
+          size?: number;
+          content_type?: string;
+          uploaded_by?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "project_files_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "project_files_uploaded_by_fkey";
+            columns: ["uploaded_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       comments: {
         Row: {
           id: string;
@@ -360,6 +489,14 @@ export type Database = {
       };
       is_workspace_admin: {
         Args: { _user_id: string };
+        Returns: boolean;
+      };
+      is_workspace_member: {
+        Args: { _workspace_id: string; _user_id: string };
+        Returns: boolean;
+      };
+      is_workspace_admin_of: {
+        Args: { _workspace_id: string; _user_id: string };
         Returns: boolean;
       };
     };
